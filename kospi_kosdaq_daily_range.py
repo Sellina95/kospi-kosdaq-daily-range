@@ -1,34 +1,20 @@
 import pandas as pd
 
 def latest_high_low_from_naver_day(code: str):
-    """
-    네이버 종목 '일별시세' 표(시가/고가/저가 포함)를 읽어서
-    가장 최근(첫 번째 유효 행)의 고가/저가를 반환.
-    code: 네이버 종목코드 (예: 069500 KODEX 200, 229200 KODEX 코스닥150)
-    """
     url = f"https://finance.naver.com/item/sise_day.naver?code={code}"
-    # 네이버 표를 그대로 읽어오기 (여러 테이블 중 첫 번째가 가격표)
-    tables = pd.read_html(url, header=0)  # 첫 행을 헤더로
-    df = tables[0].dropna(how="all")      # 빈 행 제거
 
-    # 일부 페이지는 공백 행이 섞일 수 있어 유효한 첫 행을 찾자
-    # 유효 행: '날짜'가 문자열이고 '고가','저가'가 숫자로 파싱 가능한 행
-    df = df.dropna(subset=["날짜", "고가", "저가"])
-    df = df.reset_index(drop=True)
+    # ✅ EUC-KR 인코딩 지정
+    tables = pd.read_html(url, header=0, encoding="euc-kr")
+    df = tables[0].dropna(how="all").dropna(subset=["날짜", "고가", "저가"]).reset_index(drop=True)
 
-    # 숫자 컬럼 정리(쉼표 제거)
+    # 숫자 데이터 정리
     for col in ["시가", "고가", "저가", "종가", "전일비", "거래량"]:
         if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(",", "", regex=False)
-                .str.strip()
-                .replace("", pd.NA)
-            )
+            df[col] = (df[col].astype(str).str.replace(",", "", regex=False).str.strip()
+                       .replace("", pd.NA))
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    latest = df.iloc[0]  # 표의 최상단이 가장 최근 날짜
+    latest = df.iloc[0]
     return {
         "date": latest["날짜"],
         "open": float(latest.get("시가", float("nan"))),
@@ -37,7 +23,6 @@ def latest_high_low_from_naver_day(code: str):
         "close": float(latest.get("종가", float("nan")))
     }
 
-# 코스피 / 코스닥 프록시 ETF 코드
 KOSPI_PROXY = "069500"   # KODEX 200
 KOSDAQ_PROXY = "229200"  # KODEX 코스닥150
 
